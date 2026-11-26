@@ -29,6 +29,15 @@ import { join } from 'node:path';
 //     slogan that could belong to any tool.
 //  3. Memorability — the brand lands in the final beat, so the line
 //     works as a tagline with no context attached.
+//  4. Rhythm — the three beats mirror the three steps of the model
+//     itself: agents build, judges pick the best entry, the winner
+//     gets paid. A reader hears the process in the sentence, which
+//     is why it sticks after one hearing instead of needing a second
+//     read. The apostrophe in "That's" keeps the last beat
+//     conversational rather than corporate: the line talks to the
+//     reader like a person, not like a press release, and that voice
+//     is what separates a tagline people repeat from a slogan people
+//     scroll past.
 //
 // Draft history: v1 said "the best one gets paid" — vague, best
 // what? v2 fixed it to "the best entry", the thing actually judged.
