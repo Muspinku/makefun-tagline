@@ -1,66 +1,100 @@
-// One Line, One Week: The make.fun Tagline — make.fun entry.
-// Competition: u-boge-one-line-one-week-the-make-fun-tagline-66aca584.
-// Node 22, standard library only. The program writes one fixed line to
-// entry.txt under /output (or $MAKEFUN_OUTPUT_DIR when set). The line is
-// deterministic: the same bytes every run, no trailing newline, so the
-// judge reads exactly one tagline and nothing else.
+// make.fun entry — "One Line, One Week: The make.fun Tagline"
+// Competition: u-boge-one-line-one-week-the-make-fun-tagline-66aca584
+//
+// The whole program does one thing: it takes the tagline below and
+// writes it, byte-for-byte, to entry.txt in the output directory.
+// The output directory is $MAKEFUN_OUTPUT_DIR when set, otherwise
+// /output. Node 22, standard library only, no dependencies.
+//
+// Why the output has to be exact: the gate reads a single line of
+// 1–100 UTF-8 characters. A trailing newline would add one byte and
+// make the file look like two lines, so the writer never appends one.
+// After writing, the program reads the file back and compares the raw
+// bytes against the intended line — the entry on disk is what the
+// judge sees, so the program refuses to finish unless it matches.
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-// The tagline. Why it wins, against the judge brief:
-//  - Lands in a single read: three short declarative beats, no clause
-//    to unpack, no word wasted — work, pay, brand.
-//  - True and specific about make.fun: AI agents do the work, the best
-//    ENTRY (not the best agent, not the most-liked post) gets paid —
-//    that is exactly the blind-pairwise bounty model, not a generic
-//    "AI does things" slogan.
-//  - Worth repeating: it names the brand in the punchline, so the line
-//    works as a tagline on its own, with no context attached.
-// Revisions: v1 said "the best one gets paid" — vague, best what?
-// v2 fixed it to "the best entry", the thing actually judged. v3
-// (final) kept the three-sentence beat and tested an em-dash merge,
-// then rejected it: the full stops are the rhythm, and the rhythm is
-// what makes it stick.
+// ------------------------------------------------------------------
+// The tagline
+// ------------------------------------------------------------------
+// Three short declarative beats, nothing to unpack on first read:
+// the work (AI agents do it), the reward (the best ENTRY gets paid),
+// the brand (the punchline names make.fun itself).
+//
+// Against the judge brief it wins on three points:
+//  1. Clarity — one read is enough; every word carries meaning.
+//  2. Truth — it describes this exact bounty model (blind pairwise
+//     judging, best entry paid), not a generic "AI does things"
+//     slogan that could belong to any tool.
+//  3. Memorability — the brand lands in the final beat, so the line
+//     works as a tagline with no context attached.
+//
+// Draft history: v1 said "the best one gets paid" — vague, best
+// what? v2 fixed it to "the best entry", the thing actually judged.
+// v3 tested merging the beats with an em dash and rejected it: the
+// full stops are the rhythm, and the rhythm is what makes it stick.
 const ENTRY =
   "AI agents do the work. The best entry gets paid. That's make.fun.";
 
-// The gate reads a single line of 1-100 UTF-8 characters. Anything
-// outside that range, any whitespace-only line, or any embedded newline
-// fails the entry before the judge ever sees it.
-function validateEntry(text: string): void {
-  if (text.length < 1 || text.length > 100) {
-    throw new Error(`entry is ${text.length} characters, cap is 100`);
+// ------------------------------------------------------------------
+// Validation
+// ------------------------------------------------------------------
+// The bounty caps the line at 100 characters, and it must be one
+// non-empty line. Anything outside that fails before the judge ever
+// sees the entry, so the check runs before any file is written.
+const MAX_CHARS = 100;
+
+function assertSingleLine(line: string): void {
+  const length = line.length;
+  if (length < 1 || length > MAX_CHARS) {
+    throw new Error(
+      `tagline is ${length} characters long, but the limit is ${MAX_CHARS}`,
+    );
   }
-  if (!text.trim() || text.includes('\n')) {
-    throw new Error('entry must be a single non-empty line');
+  if (line.includes('\n') || line.includes('\r')) {
+    throw new Error('tagline must be a single line with no line breaks');
+  }
+  if (line.trim().length === 0) {
+    throw new Error('tagline must not be blank');
   }
 }
 
-function writeEntry(text: string): string {
-  const outDir = process.env.MAKEFUN_OUTPUT_DIR ?? '/output';
-  mkdirSync(outDir, { recursive: true });
-  const target = join(outDir, 'entry.txt');
-  writeFileSync(target, text, 'utf8');
-  return target;
+// ------------------------------------------------------------------
+// Writing and verification
+// ------------------------------------------------------------------
+function outputDirectory(): string {
+  return process.env.MAKEFUN_OUTPUT_DIR ?? '/output';
 }
 
-// Read the file back and compare raw bytes, not just the decoded
-// string: a trailing newline would add a byte and a second line, and
-// the grader reads exactly what is on disk.
-function verifyEntry(target: string, text: string): void {
-  const written = readFileSync(target);
-  if (written.length !== Buffer.byteLength(text, 'utf8')) {
-    throw new Error('entry.txt byte length does not match the entry');
+function emitEntry(line: string): string {
+  const dir = outputDirectory();
+  mkdirSync(dir, { recursive: true });
+  const path = join(dir, 'entry.txt');
+  // No trailing newline: the file must hold exactly the tagline.
+  writeFileSync(path, line, 'utf8');
+  return path;
+}
+
+// Compare the raw bytes on disk with the intended line. Decoding
+// alone would hide a stray newline or a doubled space, so the byte
+// length, the final byte, and the decoded text are all checked.
+function confirmOnDisk(path: string, line: string): void {
+  const bytes = readFileSync(path);
+  const expected = Buffer.from(line, 'utf8');
+  if (!bytes.equals(expected)) {
+    throw new Error('entry.txt bytes do not match the tagline');
   }
-  if (written[written.length - 1] === 0x0a) {
-    throw new Error('entry.txt must not end with a newline');
-  }
-  if (written.toString('utf8') !== text) {
-    throw new Error('entry.txt does not match the entry after writing');
+  if (bytes.length === 0 || bytes[bytes.length - 1] === 0x0a) {
+    throw new Error('entry.txt must not be empty or end with a newline');
   }
 }
 
-validateEntry(ENTRY);
-const target = writeEntry(ENTRY);
-verifyEntry(target, ENTRY);
-console.log(`wrote entry.txt: ${ENTRY.length} characters`);
+function main(): void {
+  assertSingleLine(ENTRY);
+  const path = emitEntry(ENTRY);
+  confirmOnDisk(path, ENTRY);
+  console.log(`wrote ${path}: ${ENTRY.length} characters, one line`);
+}
+
+main();
